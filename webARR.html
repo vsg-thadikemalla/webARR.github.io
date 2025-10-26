@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>WebAR Image Projector</title>
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/aframe-ar@1.8.2/dist/aframe-ar.min.js"></script>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+        font-family: system-ui, sans-serif;
+      }
+      #ui {
+        position: absolute;
+        top: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 999;
+        display: flex;
+        gap: 6px;
+        background: rgba(0,0,0,0.45);
+        padding: 8px 12px;
+        border-radius: 8px;
+      }
+      #ui input[type="file"], button {
+        color: white;
+        background: transparent;
+        border: 1px solid white;
+        padding: 6px 10px;
+        border-radius: 4px;
+      }
+      #ui button:hover {
+        background: rgba(255,255,255,0.1);
+      }
+    </style>
+  </head>
+  <body>
+    <!-- UI Controls -->
+    <div id="ui">
+      <input type="file" id="uploader" accept="image/*" />
+      <button id="zoomIn">Zoom +</button>
+      <button id="zoomOut">Zoom −</button>
+      <button id="reset">♻ Reset</button>
+      <button id="snap">📸 Photo</button>
+      <button id="record">🎥 Record</button>
+    </div>
+
+    <!-- AR Scene -->
+    <a-scene
+      webxr="optionalFeatures: hit-test;"
+      vr-mode-ui="enabled: false"
+      embedded
+      renderer="antialias: true; colorManagement: true;"
+      cursor="rayOrigin: mouse;"
+    >
+      <a-assets></a-assets>
+
+      <!-- Image plane -->
+      <a-image
+        id="arImage"
+        visible="false"
+        width="1"
+        height="1"
+        position="0 0 -2"
+      ></a-image>
+
+      <a-camera look-controls></a-camera>
+    </a-scene>
+
+    <script>
+      const sceneEl = document.querySelector('a-scene');
+      const imagePlane = document.querySelector('#arImage');
+      const uploader = document.getElementById('uploader');
+      const recordBtn = document.getElementById('record');
+      let currentScale = 1;
+      let mediaRecorder;
+      let recordedChunks = [];
+
+      // === 1️⃣ Upload image ===
+      uploader.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const url = URL.createObjectURL(file);
+        imagePlane.setAttribute('src', url);
+        imagePlane.setAttribute('visible', true);
+      });
+
+      // === 2️⃣ Zoom controls ===
+      document.getElementById('zoomIn').addEventListener('click', () => {
+        currentScale += 0.2;
+        imagePlane.setAttribute('scale', `${currentScale} ${currentScale} ${currentScale}`);
+      });
+      document.getElementById('zoomOut').addEventListener('click', () => {
+        currentScale = Math.max(0.2, currentScale - 0.2);
+        imagePlane.setAttribute('scale', `${currentScale} ${currentScale} ${currentScale}`);
+      });
+
+      // === 3️⃣ Tap to place image ===
+      sceneEl.addEventListener('click', (e) => {
+        const touch = e.detail.intersection;
+        if (touch && imagePlane.getAttribute('visible')) {
+          const p = touch.point;
+          imagePlane.setAttribute('position', `${p.x} ${p.y} ${p.z}`);
+        }
+      });
+
+      // === 4️⃣ Reset image ===
+      document.getElementById('reset').addEventListener('click', () => {
+        imagePlane.setAttribute('visible', false);
+        uploader.value = '';
+        currentScale = 1;
+      });
+
+      // === 5️⃣ Take photo ===
+      document.getElementById('snap').addEventListener('click', () => {
+        const canvas = sceneEl.renderer.domElement;
+        const imgData = canvas.toDataURL('image/png');
+        const link = document.createElement('a');
+        link.href = imgData;
+        link.download = 'AR_Snapshot.png';
+        link.click();
+      });
+
+      // === 6️⃣ Record video ===
+      recordBtn.addEventListener('click', async () => {
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
+          // Stop recording
+          mediaRecorder.stop();
+          recordBtn.textContent = '🎥 Record';
+          return;
+        }
+
+        const canvasStream = sceneEl.renderer.domElement.captureStream(30);
+        mediaRecorder = new MediaRecorder(canvasStream, { mimeType: 'video/webm' });
+        recordedChunks = [];
+
+        mediaRecorder.ondataavailable = (e) => {
+          if (e.data.size > 0) recordedChunks.push(e.data);
+        };
+
+        mediaRecorder.onstop = () => {
+          const blob = new Blob(recordedChunks, { type: 'video/webm' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.style.display = 'none';
+          a.href = url;
+          a.download = 'AR_Video.webm';
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+        };
+
+        mediaRecorder.start();
+        recordBtn.textContent = '⏹ Stop';
+      });
+    </script>
+  </body>
+</html>
