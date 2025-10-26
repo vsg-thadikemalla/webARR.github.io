@@ -18,10 +18,13 @@
         transform: translateX(-50%);
         z-index: 999;
         display: flex;
+        flex-wrap: wrap;       /* allow buttons to wrap to next line */
         gap: 6px;
         background: rgba(0,0,0,0.45);
         padding: 8px 12px;
         border-radius: 8px;
+        max-width: 95vw;       /* prevent overflow */
+        box-sizing: border-box;
       }
       #ui input[type="file"], button {
         color: white;
@@ -29,6 +32,8 @@
         border: 1px solid white;
         padding: 6px 10px;
         border-radius: 4px;
+        flex-shrink: 1;
+        font-size: 14px;
       }
       #ui button:hover {
         background: rgba(255,255,255,0.1);
@@ -47,13 +52,13 @@
     </div>
 
     <!-- AR Scene -->
-    <a-scene
-      webxr="optionalFeatures: hit-test;"
-      vr-mode-ui="enabled: false"
-      embedded
-      renderer="antialias: true; colorManagement: true;"
-      cursor="rayOrigin: mouse;"
-    >
+      <a-scene
+        xr-mode="ar"
+        webxr="optionalFeatures: hit-test, dom-overlay; overlayElement: #ui;"
+        embedded
+        renderer="antialias: true; colorManagement: true;"
+        vr-mode-ui="enabled: false"
+      >
       <a-assets></a-assets>
 
       <!-- Image plane -->
@@ -157,4 +162,5 @@
     </script>
   </body>
 </html>
+
 
